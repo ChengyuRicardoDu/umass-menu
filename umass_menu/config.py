@@ -49,6 +49,16 @@ HALL_ORDER = [
     "People's Organic Coffee",
 ]
 
+# 食堂简称（按钮和"别处也有"标注用）
+HALL_SHORT = {
+    "Worcester Commons": "Woo",
+    "Franklin Dining Commons": "Frank",
+    "Hampshire Dining Commons": "Hamp",
+    "Berkshire Dining Commons": "Berk",
+    "Harvest Market": "Harvest",
+    "People's Organic Coffee": "People's",
+}
+
 # 常用食堂的中文昵称（显示用，找不到就只显示英文名）
 HALL_NAMES_ZH = {
     "Worcester Commons": "沃斯特食堂 Woo",

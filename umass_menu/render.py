@@ -1,4 +1,8 @@
-"""把当天菜单渲染成自包含 HTML：按餐段分页签，打开时自动跳到当前餐段。"""
+"""把当天菜单渲染成自包含 HTML。
+
+布局：餐段页签（按时间自动选中）→ 食堂按钮（一次只显示一个食堂，记住上次选择）
+→ 档口 → 菜品。同一道菜当天在多个食堂供应时，菜名用紫色并标注别处哪里也有。
+"""
 import datetime
 import html
 
@@ -20,15 +24,18 @@ header .sub { opacity: .85; font-size: 14px; margin-top: 4px; }
 .newbox { background: #fff7e6; border: 1px solid #f0d9a8; border-radius: 10px;
           padding: 12px 16px; margin: 0 0 16px; font-size: 14px; }
 .newbox b { color: #b45309; }
-.tabbar { position: sticky; top: 0; z-index: 10; display: flex; gap: 8px;
-          background: #faf8f5; padding: 10px 0; margin-bottom: 8px;
-          overflow-x: auto; }
-.tab { border: 1px solid #ddd; background: #fff; color: #555; cursor: pointer;
-       border-radius: 20px; padding: 6px 16px; font-size: 15px;
+.bars { position: sticky; top: 0; z-index: 10; background: #faf8f5;
+        padding: 8px 0; margin-bottom: 8px; }
+.tabbar, .hallbar { display: flex; gap: 8px; overflow-x: auto; }
+.hallbar { margin-top: 8px; }
+.tab, .hallpill { border: 1px solid #ddd; background: #fff; color: #555;
+       cursor: pointer; border-radius: 20px; padding: 6px 16px; font-size: 15px;
        white-space: nowrap; font-family: inherit; }
 .tab .n { font-size: 12px; opacity: .65; margin-left: 3px; }
 .tab.active { background: #881c1c; border-color: #881c1c; color: #fff; }
-h2.hall { font-size: 19px; color: #881c1c; margin: 24px 0 4px;
+.hallpill { font-size: 13px; padding: 4px 14px; }
+.hallpill.active { background: #b45309; border-color: #b45309; color: #fff; }
+h2.hall { font-size: 19px; color: #881c1c; margin: 16px 0 4px;
           border-bottom: 2px solid #881c1c; padding-bottom: 6px; }
 h2.hall .en { font-size: 13px; color: #999; font-weight: normal; margin-left: 8px; }
 h4.station { font-size: 14px; color: #666; margin: 14px 0 6px; }
@@ -36,33 +43,53 @@ ul.dishes { list-style: none; }
 ul.dishes li { background: #fff; border: 1px solid #eee; border-radius: 8px;
                padding: 8px 12px; margin-bottom: 6px; }
 .zh { font-weight: 600; font-size: 15px; }
+.zh.shared { color: #6d28d9; }
 .en { color: #888; font-size: 13px; margin-left: 6px; }
 .meta { margin-top: 2px; font-size: 12px; color: #999; }
 .tag { display: inline-block; font-size: 11px; border-radius: 20px;
        padding: 1px 8px; margin-right: 4px; }
 .tag.new { background: #dc2626; color: #fff; font-weight: 600; }
+.tag.also { background: #f0e9fe; color: #5b21b6; }
 .tag.diet { background: #e7f5ec; color: #1a7a42; }
 .tag.allergen { background: #fdecec; color: #b91c1c; }
 footer { text-align: center; color: #aaa; font-size: 12px; margin-top: 32px; }
 """
 
-# 页签切换 + 按当前时间自动选中餐段（10:30 前早餐，15:30 前午餐，之后晚餐）
+# 两级切换：餐段（按时间自动选）+ 食堂（localStorage 记住上次的选择）
 JS = """
-function showMeal(id){
+var curMeal = null, curHall = localStorage.getItem('umenu_hall');
+function refresh(){
   document.querySelectorAll('.mealpane').forEach(function(p){
-    p.style.display = (p.id === 'meal-' + id) ? '' : 'none';});
+    p.style.display = (p.id === 'meal-' + curMeal) ? '' : 'none';});
+  var pane = document.getElementById('meal-' + curMeal);
+  if (!pane) return;
+  var avail = [].map.call(pane.querySelectorAll('.hallsec'),
+    function(s){ return s.dataset.hall; });
+  if (avail.indexOf(curHall) < 0) curHall = avail[0];
+  pane.querySelectorAll('.hallsec').forEach(function(s){
+    s.style.display = (s.dataset.hall === curHall) ? '' : 'none';});
   document.querySelectorAll('.tab').forEach(function(t){
-    t.classList.toggle('active', t.dataset.meal === id);});
+    t.classList.toggle('active', t.dataset.meal === curMeal);});
+  document.querySelectorAll('.hallpill').forEach(function(b){
+    var ok = avail.indexOf(b.dataset.hall) >= 0;
+    b.style.display = ok ? '' : 'none';
+    b.classList.toggle('active', b.dataset.hall === curHall);});
 }
 document.querySelectorAll('.tab').forEach(function(t){
-  t.addEventListener('click', function(){ showMeal(t.dataset.meal); });});
+  t.addEventListener('click', function(){ curMeal = t.dataset.meal; refresh(); });});
+document.querySelectorAll('.hallpill').forEach(function(b){
+  b.addEventListener('click', function(){
+    curHall = b.dataset.hall;
+    localStorage.setItem('umenu_hall', curHall);
+    refresh(); });});
 (function(){
   var meals = [].map.call(document.querySelectorAll('.mealpane'),
     function(p){ return p.id.slice(5); });
   if (!meals.length) return;
   var now = new Date(), h = now.getHours() + now.getMinutes() / 60;
   var want = h < 10.5 ? 'breakfast' : (h < 15.5 ? 'lunch' : 'dinner');
-  showMeal(meals.indexOf(want) >= 0 ? want : meals[0]);
+  curMeal = meals.indexOf(want) >= 0 ? want : meals[0];
+  refresh();
 })();
 """
 
@@ -94,15 +121,23 @@ def _meal_sort_key(meal):
         return 99
 
 
-def _dish_li(row, today, first_run):
+def _short(hall):
+    return config.HALL_SHORT.get(hall, hall)
+
+
+def _dish_li(row, today, first_run, other_halls):
     e = html.escape
     zh = row["name_zh"] or row["name_en"]
-    parts = [f'<li><span class="zh">{e(zh)}</span>']
+    shared = " shared" if other_halls else ""
+    parts = [f'<li><span class="zh{shared}">{e(zh)}</span>']
     if row["name_zh"]:
         parts.append(f'<span class="en">{e(row["name_en"])}</span>')
     tags = []
     if not first_run and row["first_seen"] == today:
         tags.append('<span class="tag new">新菜</span>')
+    if other_halls:
+        where = " / ".join(_short(h) for h in other_halls)
+        tags.append(f'<span class="tag also">{e(where)} 也有</span>')
     for t in _zh_tags(row["diets"], config.DIET_TAGS_ZH):
         tags.append(f'<span class="tag diet">{e(t)}</span>')
     for t in _zh_tags(row["allergens"], config.ALLERGENS_ZH):
@@ -125,12 +160,16 @@ def render(conn, date_iso, halls):
     today_dt = datetime.date.fromisoformat(date_iso)
     e = html.escape
 
-    # meal -> hall -> station -> [row]（选餐段，再比食堂）
+    # meal -> hall -> station -> [row]
     grouped = {}
+    dish_halls = {}  # name_en -> 当天供应该菜的食堂集合
     for r in rows:
         grouped.setdefault(r["meal"], {}).setdefault(r["hall"], {}) \
                .setdefault(r["station"] or "其他", []).append(r)
+        dish_halls.setdefault(r["name_en"], set()).add(r["hall"])
     meals = sorted(grouped, key=_meal_sort_key)
+    all_halls = sorted({r["hall"] for r in rows}, key=_hall_sort_key)
+    hall_id = {h: f"h{i}" for i, h in enumerate(all_halls)}
 
     new_dishes = sorted({r["name_zh"] or r["name_en"]
                          for r in rows if r["first_seen"] == date_iso}) \
@@ -154,7 +193,10 @@ def render(conn, date_iso, halls):
         label = e(config.MEAL_NAMES_ZH.get(meal, meal))
         tabs.append(f'<button class="tab" data-meal="{_slug(meal)}">'
                     f'{label}<span class="n">{n}</span></button>')
-    body.append(f'<div class="tabbar">{"".join(tabs)}</div>')
+    pills = [f'<button class="hallpill" data-hall="{hall_id[h]}">'
+             f'{e(_short(h))}</button>' for h in all_halls]
+    body.append(f'<div class="bars"><div class="tabbar">{"".join(tabs)}</div>'
+                f'<div class="hallbar">{"".join(pills)}</div></div>')
 
     for meal in meals:
         body.append(f'<div class="mealpane" id="meal-{_slug(meal)}" style="display:none">')
@@ -162,11 +204,16 @@ def render(conn, date_iso, halls):
             zh_name = config.HALL_NAMES_ZH.get(hall)
             title = (f'{e(zh_name)}<span class="en">{e(hall)}</span>'
                      if zh_name else e(hall))
-            body.append(f'<h2 class="hall">{title}</h2>')
+            body.append(f'<div class="hallsec" data-hall="{hall_id[hall]}" '
+                        f'style="display:none"><h2 class="hall">{title}</h2>')
             for station, dishes in grouped[meal][hall].items():
                 body.append(f'<h4 class="station">{e(station)}</h4><ul class="dishes">')
-                body.extend(_dish_li(r, date_iso, first_run) for r in dishes)
+                for r in dishes:
+                    others = sorted(dish_halls[r["name_en"]] - {hall},
+                                    key=_hall_sort_key)
+                    body.append(_dish_li(r, date_iso, first_run, others))
                 body.append("</ul>")
+            body.append("</div>")
         body.append("</div>")
 
     n_pending = sum(1 for r in rows if not r["name_zh"])
