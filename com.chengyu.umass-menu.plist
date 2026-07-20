@@ -7,7 +7,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/sh</string>
-        <string>/Volumes/WorkSSD/umass-menu/run_daily.sh</string>
+        <string>/Users/chengyudu/umass-menu/run_daily.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
@@ -17,8 +17,8 @@
         <integer>0</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>/Volumes/WorkSSD/umass-menu/logs/launchd.log</string>
+    <string>/Users/chengyudu/umass-menu/logs/launchd.log</string>
     <key>StandardErrorPath</key>
-    <string>/Volumes/WorkSSD/umass-menu/logs/launchd.log</string>
+    <string>/Users/chengyudu/umass-menu/logs/launchd.log</string>
 </dict>
 </plist>
